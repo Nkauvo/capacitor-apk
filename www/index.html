@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="GymFlow - Sua Ficha de Treino Digital Inteligente e Moderna">
+    <meta name="theme-color" content="#090d16">
+    <title>GymFlow | Ficha de Treino & Evolução</title>
+
+    <!-- GOOGLE FONTS: PLUS JAKARTA SANS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
+
+    <!-- FONT AWESOME ICONS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- CHART.JS FOR EVOLUTION ANALYTICS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- CANVAS CONFETTI FOR CELEBRATION -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+    <!-- TAILWIND CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- TAILWIND CONFIGURATION -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    colors: {
+                        dark: {
+                            950: '#060911',
+                            900: '#0c111d',
+                            850: '#111827',
+                            800: '#1a2234',
+                            700: '#28344e',
+                        },
+                        gym: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            300: '#6ee7b7',
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            accent: '#00f59b'
+                        }
+                    },
+                    boxShadow: {
+                        'glow': '0 0 25px -5px rgba(16, 185, 129, 0.35)',
+                        'glow-lg': '0 0 40px -5px rgba(16, 185, 129, 0.45)',
+                        'glow-cyan': '0 0 25px -5px rgba(6, 182, 212, 0.35)',
+                        'inner-light': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.1)',
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                        'scale-in': 'scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-5px)' },
+                        },
+                        scaleIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.95)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+
+    <style>
+        /* Custom scrollbar and smooth scroll */
+        html {
+            scroll-behavior: smooth;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #060911;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1a2234;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #10b981;
+        }
+
+        /* Glassmorphism utility */
+        .glass-card {
+            background: rgba(12, 17, 29, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .glass-card-interactive {
+            background: rgba(12, 17, 29, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .glass-card-interactive:hover {
+            background: rgba(17, 24, 39, 0.9);
+            border-color: rgba(16, 185, 129, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px -5px rgba(16, 185, 129, 0.15);
+        }
+
+        .glass-nav {
+            background: rgba(6, 9, 17, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Ambient background glow */
+        .ambient-glow {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(6, 9, 17, 0) 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .ambient-glow-secondary {
+            position: fixed;
+            bottom: 100px;
+            right: 0;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, rgba(6, 9, 17, 0) 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Remove spin buttons from number inputs */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-apparance: textfield;
+        }
+    </style>
+</head>
+
+<body class="bg-dark-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-gym-500 selection:text-dark-950 relative pb-28">
+
+    <!-- AMBIENT LIGHTS -->
+    <div class="ambient-glow"></div>
+    <div class="ambient-glow-secondary"></div>
+
+    <!-- =====================================================
+         HEADER
+    ===================================================== -->
+    <header class="fixed top-0 left-0 right-0 z-40 bg-dark-950/80 backdrop-blur-xl border-b border-slate-800/80 transition-all duration-300">
+        <div class="max-w-5xl mx-auto px-4 py-3 sm:py-3.5 flex items-center justify-between gap-3">
+            
+            <!-- LOGO & BRAND -->
+            <button onclick="mostrarPagina('inicio')" class="flex items-center gap-3 group text-left focus:outline-none">
+                <div class="relative">
+                    <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-gym-600 via-gym-500 to-gym-400 flex items-center justify-center text-xl shadow-glow group-hover:scale-105 transition-transform duration-300">
+                        <i class="fa-solid fa-dumbbell text-dark-950 text-lg"></i>
+                    </div>
+                    <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-gym-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-gym-500"></span>
+                    </span>
+                </div>
+
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <h1 class="text-xl font-extrabold tracking-tight">
+                            Gym<span class="bg-gradient-to-r from-gym-400 to-gym-accent bg-clip-text text-transparent">Flow</span>
+                        </h1>
+                        <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-gym-500/10 text-gym-400 border border-gym-500/20">PRO</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-medium tracking-wide">Ficha & Evolução Digital</p>
+                </div>
+            </button>
+
+            <!-- RIGHT ACTIONS: QUICK REST TIMER BUTTON & PROFILE -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                
+                <!-- ACTIVE REST TIMER WIDGET (HIDDEN BY DEFAULT, SHOWN WHEN RUNNING) -->
+                <button id="widgetTimerTopo" onclick="abrirModalTimer()" class="hidden items-center gap-2 px-3 py-1.5 rounded-full bg-gym-500/10 border border-gym-500/40 text-gym-400 hover:bg-gym-500/20 transition-all text-xs font-bold shadow-glow animate-pulse">
+                    <i class="fa-solid fa-stopwatch"></i>
+                    <span id="tempoWidgetTopo">00:45</span>
+                </button>
+
+                <!-- REST TIMER BUTTON -->
+                <button onclick="abrirModalTimer()" title="Cronômetro de descanso" class="w-10 h-10 rounded-xl bg-dark-850 hover:bg-dark-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-gym-400 transition-all flex items-center justify-center text-sm relative group">
+                    <i class="fa-solid fa-stopwatch text-base group-hover:scale-110 transition-transform"></i>
+                    <span class="absolute -bottom-8 right-0 bg-dark-900 text-xs px-2 py-1 rounded shadow-lg border border-slate-800 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap text-slate-300">Descanso</span>
+                </button>
+
+                <!-- PROFILE BUTTON WITH USER INITIAL / AVATAR -->
+                <button onclick="mostrarPagina('perfil')" class="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl bg-dark-850 hover:bg-dark-800 border border-slate-800 hover:border-gym-500/50 transition-all group">
+                    <div id="avatarHeader" class="w-7 h-7 rounded-lg bg-gym-500/20 border border-gym-500/30 flex items-center justify-center text-sm">
+                        🏋️
+                    </div>
+                    <span id="nomeHeader" class="text-xs font-bold text-slate-300 group-hover:text-white max-w-[80px] sm:max-w-[110px] truncate">Atleta</span>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+
+    <!-- =====================================================
+         CONTEÚDO PRINCIPAL (MAIN)
+    ===================================================== -->
+    <main class="max-w-5xl mx-auto px-4 pt-24 sm:pt-28 pb-10 relative z-10">
+
+        <!-- =====================================================
+             PÁGINA 1: INÍCIO (DASHBOARD)
+        ===================================================== -->
+        <section id="pagina-inicio" class="pagina space-y-7 animate-scale-in">
+
+            <!-- HERO GREETING & STREAK BANNER -->
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-dark-900 via-dark-850 to-dark-900 border border-slate-800/80 p-6 sm:p-8 shadow-2xl">
+                <!-- Background Decorative Grid and Glow -->
+                <div class="absolute top-0 right-0 w-80 h-80 bg-gym-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+                <div class="absolute bottom-0 right-10 opacity-10 text-9xl select-none pointer-events-none font-black text-gym-400">⚡</div>
+
+                <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                    <div>
+                        <!-- LIVE DATE AND STREAK -->
+                        <div class="flex flex-wrap items-center gap-2.5 mb-2.5">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gym-500/10 border border-gym-500/20 text-gym-400 text-xs font-bold tracking-wide">
+                                <span class="w-2 h-2 rounded-full bg-gym-400 animate-ping"></span>
+                                <span id="dataAtualExtenso">Hoje</span>
+                            </span>
+                            <span id="badgeStreak" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold">
+                                <i class="fa-solid fa-fire"></i> Foco Total
+                            </span>
+                        </div>
+
+                        <!-- SAUDAÇÃO PERSONALIZADA -->
+                        <h2 id="saudacaoInicio" class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mt-1">
+                            Olá, Atleta! 👋
+                        </h2>
+                        
+                        <!-- MOTIVATIONAL QUOTE -->
+                        <p id="fraseMotivacional" class="text-slate-400 text-sm sm:text-base mt-2 max-w-xl leading-relaxed italic">
+                            "A disciplina é a ponte entre suas metas e suas conquistas."
+                        </p>
+                    </div>
+
+                    <!-- QUICK WORKOUT BUTTON CTA -->
+                    <div class="flex sm:flex-col items-center gap-3">
+                        <button onclick="mostrarPagina('treinos')" class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-gym-500 to-gym-600 hover:from-gym-400 hover:to-gym-500 text-dark-950 font-extrabold text-sm sm:text-base shadow-glow hover:shadow-glow-lg transition-all duration-300 transform active:scale-95">
+                            <i class="fa-solid fa-play"></i>
+                            <span>Iniciar Treino</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- DASHBOARD SUMMARY KPI CARDS (4 CARDS) -->
+            <div>
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Resumo de Atividades</h3>
+                    <button onclick="mostrarPagina('historico')" class="text-xs text-gym-400 hover:text-gym-300 font-semibold flex items-center gap-1">
+                        Evolução completa <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    
+                    <!-- KPI 1: TREINOS DISPONÍVEIS -->
+                    <div class="glass-card-interactive rounded-2xl p-4 sm:p-5 relative overflow-hidden group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400">Fichas</span>
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-layer-group"></i>
+                            </div>
+                        </div>
+                        <p id="resumoTreinos" class="text-2xl sm:text-3xl font-black text-white mt-3">4</p>
+                        <p class="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                            <i class="fa-solid fa-circle-check text-emerald-400 text-[9px]"></i> A, B, C, D ativas
+                        </p>
+                    </div>
+
+                    <!-- KPI 2: TOTAL SÉRIES / EXERCÍCIOS REGISTRADOS -->
+                    <div class="glass-card-interactive rounded-2xl p-4 sm:p-5 relative overflow-hidden group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400">Exercícios Feitos</span>
+                            <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-check-double"></i>
+                            </div>
+                        </div>
+                        <p id="resumoConcluidos" class="text-2xl sm:text-3xl font-black text-cyan-400 mt-3">0</p>
+                        <p class="text-[11px] text-slate-500 mt-1">Registros salvos</p>
+                    </div>
+
+                    <!-- KPI 3: VOLUME TOTAL LEVANTADO (KG TOTAL) -->
+                    <div class="glass-card-interactive rounded-2xl p-4 sm:p-5 relative overflow-hidden group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400">Volume Total</span>
+                            <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-weight-hanging"></i>
+                            </div>
+                        </div>
+                        <p id="resumoVolume" class="text-2xl sm:text-3xl font-black text-purple-400 mt-3">0 kg</p>
+                        <p class="text-[11px] text-slate-500 mt-1">Carga × Repetições</p>
+                    </div>
+
+                    <!-- KPI 4: RECORDE PESSOAL (PR / MAIOR CARGA) -->
+                    <div class="glass-card-interactive rounded-2xl p-4 sm:p-5 relative overflow-hidden group">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-400">Maior Carga</span>
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-trophy"></i>
+                            </div>
+                        </div>
+                        <p id="resumoRecorde" class="text-2xl sm:text-3xl font-black text-amber-400 mt-3">0 kg</p>
+                        <p class="text-[11px] text-slate-500 mt-1">Recorde pessoal (PR)</p>
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- TREINO SUGERIDO EM DESTAQUE (CARD INTERATIVO COM GRADIENTE) -->
+            <div>
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Treino Recomendado Hoje</h3>
+                    <span class="text-xs text-slate-500">Rotina Personalizada</span>
+                </div>
+
+                <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950/80 via-dark-900 to-teal-950/70 border border-gym-500/30 p-6 sm:p-7 shadow-glow">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded-full bg-gym-500/20 text-gym-400 font-black text-xs border border-gym-500/30 uppercase tracking-wide">
+                                    Sugestão do Dia
+                                </span>
+                                <span class="text-xs text-slate-400 flex items-center gap-1">
+                                    <i class="fa-regular fa-clock text-[11px]"></i> ~50 min
+                                </span>
+                            </div>
+
+                            <h4 id="destaqueTreinoTitulo" class="text-2xl sm:text-3xl font-black text-white">
+                                Treino A • Peito & Tríceps 💪
+                            </h4>
+
+                            <p id="destaqueTreinoDescricao" class="text-slate-300 text-sm max-w-xl">
+                                Supino Reto, Supino Inclinado, Crucifixo, Tríceps Corda e Francês.
+                            </p>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <button id="btnDestaqueIniciar" onclick="abrirTreino('A')" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-dark-950 font-black text-sm shadow-xl transition-all active:scale-95">
+                                <span>Abrir Ficha A</span>
+                                <i class="fa-solid fa-arrow-right text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- ATIVIDADE RECENTE (FEED COMPACTO) -->
+            <div>
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <div>
+                        <h3 class="text-base font-bold text-white">Atividade Recente</h3>
+                        <p class="text-xs text-slate-400">Seus últimos registros de treino</p>
+                    </div>
+                    <button onclick="mostrarPagina('historico')" class="text-xs font-bold text-gym-400 hover:text-gym-300 transition-colors flex items-center gap-1">
+                        Ver histórico completo <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                    </button>
+                </div>
+
+                <div id="inicioHistorico" class="space-y-2.5">
+                    <!-- Preenchido via JavaScript -->
+                </div>
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             PÁGINA 2: TREINOS (FICHAS & SESSÃO ATIVA)
+        ===================================================== -->
+        <section id="pagina-treinos" class="pagina hidden space-y-7 animate-scale-in">
+            
+            <!-- HEADER DA SEÇÃO -->
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-gym-400 px-2.5 py-1 rounded-full bg-gym-500/10 border border-gym-500/20">
+                        SUAS ROTINAS
+                    </span>
+                    <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mt-2">
+                        Fichas de Treino 🏋️
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">
+                        Escolha uma ficha para iniciar sua sessão ou consulte os exercícios.
+                    </p>
+                </div>
+
+                <!-- QUICK SEARCH / FILTER -->
+                <div class="relative w-full sm:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                    <input id="inputBuscaTreinos" type="text" oninput="filtrarTreinos(this.value)" placeholder="Buscar exercício ou grupo..." class="w-full bg-dark-900 border border-slate-800 rounded-xl pl-9 pr-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-gym-500 transition-colors">
+                </div>
+            </div>
+
+
+            <!-- LISTA DE CARDS DE TREINOS (A, B, C, D) -->
+            <div id="listaTreinos" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Preenchido dinamicamente via JS -->
+            </div>
+
+
+            <!-- =====================================================
+                 ÁREA DO TREINO ATIVO (SESSÃO INTERATIVA COM CRONÔMETRO)
+            ===================================================== -->
+            <div id="areaTreino" class="hidden pt-4">
+                
+                <div class="glass-card rounded-3xl border border-gym-500/30 overflow-hidden shadow-2xl">
+                    
+                    <!-- CABEÇALHO DO TREINO ATIVO -->
+                    <div class="p-5 sm:p-7 bg-gradient-to-b from-dark-900 to-dark-950 border-b border-slate-800 relative">
+                        
+                        <!-- FECHAR / MINIMIZAR -->
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1.5">
+                                    <span id="treinoEtiqueta" class="text-xs font-black uppercase px-2.5 py-0.5 rounded-full bg-gym-500/20 text-gym-400 border border-gym-500/30">
+                                        TREINO A
+                                    </span>
+                                    <span id="treinoIntensidade" class="text-xs text-slate-400 font-medium flex items-center gap-1">
+                                        <i class="fa-solid fa-gauge-high text-gym-400 text-[10px]"></i> Alta Intensidade
+                                    </span>
+                                </div>
+                                <h3 id="nomeTreino" class="text-2xl sm:text-3xl font-black text-white">Peito & Tríceps</h3>
+                                <p id="descricaoTreino" class="text-slate-400 text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed"></p>
+                            </div>
+
+                            <button onclick="fecharTreino()" title="Fechar ficha de treino" class="w-9 h-9 rounded-xl bg-dark-850 hover:bg-red-500/20 hover:text-red-400 border border-slate-800 text-slate-400 flex items-center justify-center transition-all">
+                                <i class="fa-solid fa-xmark text-base"></i>
+                            </button>
+                        </div>
+
+                        <!-- PROGRESSO & STOPWATCH DA SESSÃO -->
+                        <div class="mt-6 pt-5 border-t border-slate-800/80">
+                            <div class="flex flex-wrap items-center justify-between text-xs mb-2.5 gap-2">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-slate-400 font-semibold flex items-center gap-1.5">
+                                        <i class="fa-solid fa-list-check text-gym-400"></i> Progresso do Treino
+                                    </span>
+                                    <span id="contadorExerciciosFeitos" class="text-slate-500 font-medium text-[11px]">(0 de 5 concluídos)</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span id="timerSessao" class="text-slate-400 font-mono text-xs flex items-center gap-1">
+                                        <i class="fa-regular fa-clock text-gym-400"></i> <span id="duracaoSessao">00:00</span>
+                                    </span>
+                                    <span id="textoProgresso" class="text-gym-400 font-black text-sm">0%</span>
+                                </div>
+                            </div>
+
+                            <!-- BARRA DE PROGRESSO COM BRILHO -->
+                            <div class="h-2.5 bg-dark-850 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                                <div id="barraProgresso" class="h-full bg-gradient-to-r from-gym-500 to-gym-accent rounded-full transition-all duration-500 shadow-glow" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                    <!-- LISTA DE EXERCÍCIOS INTERATIVOS -->
+                    <div id="listaExercicios" class="p-4 sm:p-7 space-y-4 bg-dark-950/60">
+                        <!-- Preenchido dinamicamente via JS -->
+                    </div>
+
+                    <!-- FOOTER DO TREINO ATIVO COM BOTÃO DE FINALIZAR -->
+                    <div class="p-4 sm:p-6 bg-dark-900 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="text-xs text-slate-400 text-center sm:text-left">
+                            Dica: Registre o peso e repetições para salvar sua evolução automaticamente no histórico!
+                        </div>
+                        <button onclick="concluirTreinoCompleto()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-gym-500 to-gym-600 hover:from-gym-400 hover:to-gym-500 text-dark-950 font-black text-sm shadow-glow transition-all active:scale-95 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-flag-checkered"></i>
+                            <span>Finalizar Sessão de Treino</span>
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             PÁGINA 3: HISTÓRICO & EVOLUÇÃO (ANALYTICS & REGISTROS)
+        ===================================================== -->
+        <section id="pagina-historico" class="pagina hidden space-y-7 animate-scale-in">
+            
+            <!-- HEADER DA SEÇÃO -->
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-gym-400 px-2.5 py-1 rounded-full bg-gym-500/10 border border-gym-500/20">
+                        ANÁLISE & PROGRESSO
+                    </span>
+                    <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mt-2">
+                        Histórico & Evolução 📊
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">
+                        Acompanhe suas cargas, repetições e volume levantado ao longo do tempo.
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="exportarRelatorioTexto()" title="Compartilhar resumo" class="px-3.5 py-2 rounded-xl bg-dark-850 hover:bg-dark-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-share-nodes text-gym-400"></i> Compartilhar
+                    </button>
+                    <button onclick="confirmarLimpezaHistorico()" title="Apagar registros" class="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-trash-can"></i> Limpar
+                    </button>
+                </div>
+            </div>
+
+
+            <!-- 4 ESTATÍSTICAS DETALHADAS -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                
+                <div class="glass-card rounded-2xl p-4 sm:p-5 border border-slate-800/80">
+                    <span class="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-clipboard-list text-gym-400"></i> Total Registros
+                    </span>
+                    <p id="historicoTotal" class="text-2xl sm:text-3xl font-black text-white mt-2">0</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Séries registradas</p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-4 sm:p-5 border border-slate-800/80">
+                    <span class="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-dumbbell text-gym-400"></i> Maior Carga (PR)
+                    </span>
+                    <p id="historicoMaiorCarga" class="text-2xl sm:text-3xl font-black text-gym-400 mt-2">0 kg</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Carga máxima alcançada</p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-4 sm:p-5 border border-slate-800/80">
+                    <span class="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-weight-scale text-cyan-400"></i> Volume Total
+                    </span>
+                    <p id="historicoVolumeTotal" class="text-2xl sm:text-3xl font-black text-cyan-400 mt-2">0 kg</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Soma (peso × reps)</p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-4 sm:p-5 border border-slate-800/80">
+                    <span class="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-rotate text-purple-400"></i> Total Reps
+                    </span>
+                    <p id="historicoReps" class="text-2xl sm:text-3xl font-black text-purple-400 mt-2">0</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Repetições executadas</p>
+                </div>
+
+            </div>
+
+
+            <!-- GRÁFICO INTERATIVO DE EVOLUÇÃO (CHART.JS) -->
+            <div class="glass-card rounded-3xl p-5 sm:p-6 border border-slate-800">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-line text-gym-400"></i> Curva de Evolução de Cargas
+                        </h3>
+                        <p class="text-xs text-slate-400">Progresso dos últimos exercícios registrados</p>
+                    </div>
+
+                    <!-- CHART TOGGLE BUTTONS -->
+                    <div class="flex items-center gap-1 bg-dark-900 p-1 rounded-xl border border-slate-800 text-xs self-start">
+                        <button id="btnGraficoCarga" onclick="mudarModoGrafico('peso')" class="px-3 py-1.5 rounded-lg bg-gym-500 text-dark-950 font-bold transition-all">
+                            Cargas (kg)
+                        </button>
+                        <button id="btnGraficoVolume" onclick="mudarModoGrafico('volume')" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white font-semibold transition-all">
+                            Volume (kg × reps)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CANVAS DO GRÁFICO -->
+                <div class="relative h-64 sm:h-72 w-full">
+                    <canvas id="graficoEvolucao"></canvas>
+                    <div id="graficoVazioMsg" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-dark-900/80 rounded-2xl backdrop-blur-sm hidden">
+                        <i class="fa-solid fa-chart-simple text-3xl text-slate-600 mb-2"></i>
+                        <p class="text-sm font-semibold text-slate-400">Nenhum dado registrado ainda.</p>
+                        <p class="text-xs text-slate-500 mt-1">Complete seus exercícios para visualizar o gráfico de evolução!</p>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- FILTROS & LISTA COMPLETA DE REGISTROS -->
+            <div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 px-1">
+                    <div>
+                        <h3 class="text-base font-bold text-white">Registro de Sessões</h3>
+                        <p class="text-xs text-slate-400">Histórico detalhado por exercício</p>
+                    </div>
+
+                    <!-- FILTER PILLS: TODOS, A, B, C, D -->
+                    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                        <button onclick="filtrarHistoricoPorTreino('TODOS')" class="filtro-hist-btn px-3 py-1 rounded-full text-xs font-bold bg-gym-500 text-dark-950 transition-all" data-filtro="TODOS">Todos</button>
+                        <button onclick="filtrarHistoricoPorTreino('Treino A')" class="filtro-hist-btn px-3 py-1 rounded-full text-xs font-semibold bg-dark-850 text-slate-400 hover:text-white border border-slate-800 transition-all" data-filtro="Treino A">Treino A</button>
+                        <button onclick="filtrarHistoricoPorTreino('Treino B')" class="filtro-hist-btn px-3 py-1 rounded-full text-xs font-semibold bg-dark-850 text-slate-400 hover:text-white border border-slate-800 transition-all" data-filtro="Treino B">Treino B</button>
+                        <button onclick="filtrarHistoricoPorTreino('Treino C')" class="filtro-hist-btn px-3 py-1 rounded-full text-xs font-semibold bg-dark-850 text-slate-400 hover:text-white border border-slate-800 transition-all" data-filtro="Treino C">Treino C</button>
+                        <button onclick="filtrarHistoricoPorTreino('Treino D')" class="filtro-hist-btn px-3 py-1 rounded-full text-xs font-semibold bg-dark-850 text-slate-400 hover:text-white border border-slate-800 transition-all" data-filtro="Treino D">Treino D</button>
+                    </div>
+                </div>
+
+                <div id="listaHistorico" class="space-y-3">
+                    <!-- Preenchido dinamicamente via JS -->
+                </div>
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             PÁGINA 4: PERFIL & CONFIGURAÇÕES
+        ===================================================== -->
+        <section id="pagina-perfil" class="pagina hidden space-y-7 animate-scale-in">
+            
+            <!-- HEADER DA SEÇÃO -->
+            <div>
+                <span class="text-xs font-bold uppercase tracking-wider text-gym-400 px-2.5 py-1 rounded-full bg-gym-500/10 border border-gym-500/20">
+                    CONFIGURAÇÃO DA CONTA
+                </span>
+                <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mt-2">
+                    Meu Perfil & Metas 👤
+                </h2>
+                <p class="text-slate-400 text-sm mt-1">
+                    Personalize seus dados, metas e preferências do aplicativo.
+                </p>
+            </div>
+
+
+            <!-- CARD PRINCIPAL DO PERFIL -->
+            <div class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl">
+                
+                <!-- AVATAR & INFO GERAL -->
+                <div class="flex flex-col sm:flex-row items-center gap-6 pb-8 border-b border-slate-800/80">
+                    <div class="relative group cursor-pointer" onclick="abrirSeletorAvatar()">
+                        <div id="perfilAvatarGrande" class="w-24 h-24 rounded-3xl bg-gradient-to-tr from-gym-600/30 to-gym-400/20 border-2 border-gym-500/40 flex items-center justify-center text-5xl shadow-glow transition-transform group-hover:scale-105">
+                            🏋️
+                        </div>
+                        <div class="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-gym-500 text-dark-950 flex items-center justify-center text-xs shadow-lg font-black" title="Trocar avatar">
+                            <i class="fa-solid fa-pen"></i>
+                        </div>
+                    </div>
+
+                    <div class="text-center sm:text-left flex-1">
+                        <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                            <h3 id="nomePerfil" class="text-2xl font-black text-white">Atleta</h3>
+                            <span id="badgeNivel" class="text-xs px-2.5 py-0.5 rounded-full bg-gym-500/20 text-gym-400 font-bold border border-gym-500/30">
+                                Intermediário
+                            </span>
+                        </div>
+                        <p id="metaPerfilDisplay" class="text-sm text-slate-400 mt-1">Foco: Hipertrofia & Força Muscular</p>
+                        <p class="text-xs text-slate-500 mt-1">Membro Pro GymFlow • Dados salvos no dispositivo</p>
+                    </div>
+                </div>
+
+
+                <!-- FORMULÁRIO DE DADOS PESSOAIS -->
+                <div class="mt-7 space-y-5">
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                            Nome Completo ou Apelido
+                        </label>
+                        <div class="relative">
+                            <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                            <input id="inputNome" type="text" maxlength="30" placeholder="Ex: Alex Silva" class="w-full bg-dark-900 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white focus:outline-none focus:border-gym-500 transition-colors">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                                Peso Corporal (kg)
+                            </label>
+                            <div class="relative">
+                                <i class="fa-solid fa-weight-scale absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                                <input id="inputPesoCorporal" type="number" step="0.1" min="30" max="300" placeholder="Ex: 75.5" class="w-full bg-dark-900 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white focus:outline-none focus:border-gym-500 transition-colors">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                                Altura (cm)
+                            </label>
+                            <div class="relative">
+                                <i class="fa-solid fa-ruler-vertical absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                                <input id="inputAltura" type="number" min="100" max="250" placeholder="Ex: 178" class="w-full bg-dark-900 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-sm text-white focus:outline-none focus:border-gym-500 transition-colors">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                                Meta Principal
+                            </label>
+                            <select id="selectMeta" class="w-full bg-dark-900 border border-slate-800 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-gym-500 transition-colors">
+                                <option value="Hipertrofia">Ganho de Massa (Hipertrofia)</option>
+                                <option value="Emagrecimento">Definição / Queima de Gordura</option>
+                                <option value="Força">Força Máxima & Performance</option>
+                                <option value="Saúde">Saúde & Condicionamento</option>
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <!-- BOTÃO SALVAR -->
+                    <button onclick="salvarPerfil()" class="w-full py-4 rounded-xl bg-gradient-to-r from-gym-500 to-gym-600 hover:from-gym-400 hover:to-gym-500 text-dark-950 font-black text-sm shadow-glow hover:shadow-glow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Salvar Alterações do Perfil</span>
+                    </button>
+
+                </div>
+
+
+                <!-- PREFERÊNCIAS DO APLICATIVO -->
+                <div class="mt-8 pt-8 border-t border-slate-800/80">
+                    <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-gym-400"></i> Preferências do App
+                    </h4>
+
+                    <div class="space-y-4">
+                        
+                        <!-- TOGGLE: SONS & BEEP -->
+                        <div class="flex items-center justify-between p-3.5 rounded-xl bg-dark-900 border border-slate-800/80">
+                            <div>
+                                <p class="text-sm font-bold text-white">Efeitos Sonoros & Beeps</p>
+                                <p class="text-xs text-slate-400">Tocar alerta sonoro ao finalizar o tempo de descanso</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input id="chkSom" type="checkbox" checked onchange="salvarPreferencia('som', this.checked)" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gym-500"></div>
+                            </label>
+                        </div>
+
+                        <!-- TOGGLE: AUTO TIMER -->
+                        <div class="flex items-center justify-between p-3.5 rounded-xl bg-dark-900 border border-slate-800/80">
+                            <div>
+                                <p class="text-sm font-bold text-white">Descanso Automático</p>
+                                <p class="text-xs text-slate-400">Iniciar cronômetro automaticamente ao registrar uma série</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input id="chkAutoTimer" type="checkbox" checked onchange="salvarPreferencia('autoTimer', this.checked)" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gym-500"></div>
+                            </label>
+                        </div>
+
+                    </div>
+                </div>
+
+
+                <!-- BACKUP & RESTAURAÇÃO -->
+                <div class="mt-8 pt-8 border-t border-slate-800/80">
+                    <h4 class="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-database text-cyan-400"></i> Backup & Dados
+                    </h4>
+
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="exportarBackupJSON()" class="px-4 py-2.5 rounded-xl bg-dark-900 hover:bg-dark-850 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-download text-gym-400"></i> Exportar Dados (JSON)
+                        </button>
+                        <label class="px-4 py-2.5 rounded-xl bg-dark-900 hover:bg-dark-850 border border-slate-800 text-slate-300 hover:text-white text-xs font-bold transition-all flex items-center gap-2 cursor-pointer">
+                            <i class="fa-solid fa-upload text-cyan-400"></i> Importar Dados
+                            <input type="file" accept=".json" onchange="importarBackupJSON(event)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+
+    <!-- =====================================================
+         MODAL / DRAWER: CRONÔMETRO DE DESCANSO INTELIGENTE
+    ===================================================== -->
+    <div id="modalTimer" class="fixed inset-0 z-50 bg-dark-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden animate-scale-in">
+        <div class="glass-card rounded-3xl border border-gym-500/40 p-6 sm:p-8 max-w-sm w-full shadow-glow-lg text-center relative">
+            
+            <button onclick="fecharModalTimer()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-dark-850 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+
+            <span class="inline-block px-3 py-1 rounded-full bg-gym-500/10 border border-gym-500/20 text-gym-400 text-xs font-bold uppercase tracking-wider mb-4">
+                Cronômetro de Descanso ⏱️
+            </span>
+
+            <!-- CIRCULAR TIMER DISPLAY -->
+            <div class="relative w-48 h-48 mx-auto my-4 flex items-center justify-center">
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="42" stroke="currentColor" stroke-width="6" class="text-slate-800" fill="transparent"></circle>
+                    <circle id="timerProgressCircle" cx="50" cy="50" r="42" stroke="currentColor" stroke-width="6" stroke-dasharray="264" stroke-dashoffset="0" stroke-linecap="round" class="text-gym-500 transition-all duration-300" fill="transparent"></circle>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span id="timerDisplay" class="text-4xl font-black tracking-tight text-white font-mono">01:00</span>
+                    <span id="timerEstadoTexto" class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold mt-1">Pronto</span>
+                </div>
+            </div>
+
+            <!-- PRESET QUICK BUTTONS -->
+            <div class="grid grid-cols-4 gap-2 mb-6">
+                <button onclick="setTimerDuration(30)" class="py-1.5 rounded-lg bg-dark-900 hover:bg-dark-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-gym-400 transition-all">30s</button>
+                <button onclick="setTimerDuration(60)" class="py-1.5 rounded-lg bg-dark-900 hover:bg-dark-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-gym-400 transition-all">60s</button>
+                <button onclick="setTimerDuration(90)" class="py-1.5 rounded-lg bg-dark-900 hover:bg-dark-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-gym-400 transition-all">90s</button>
+                <button onclick="setTimerDuration(120)" class="py-1.5 rounded-lg bg-dark-900 hover:bg-dark-800 border border-slate-800 text-xs font-bold text-slate-300 hover:text-gym-400 transition-all">120s</button>
+            </div>
+
+            <!-- CONTROLS: PLAY/PAUSE, +15s, RESET -->
+            <div class="flex items-center justify-center gap-3">
+                <button onclick="ajustarTimer(-15)" title="-15 segundos" class="w-12 h-12 rounded-2xl bg-dark-900 hover:bg-dark-850 border border-slate-800 text-slate-300 hover:text-white flex items-center justify-center font-bold text-xs active:scale-95 transition-all">
+                    -15s
+                </button>
+
+                <button id="btnTimerPlayPause" onclick="toggleTimer()" class="px-6 h-12 rounded-2xl bg-gym-500 hover:bg-gym-400 text-dark-950 font-black text-sm shadow-glow flex items-center justify-center gap-2 active:scale-95 transition-all">
+                    <i id="iconeTimerPlay" class="fa-solid fa-play"></i>
+                    <span id="textoTimerPlay">Iniciar</span>
+                </button>
+
+                <button onclick="ajustarTimer(15)" title="+15 segundos" class="w-12 h-12 rounded-2xl bg-dark-900 hover:bg-dark-850 border border-slate-800 text-slate-300 hover:text-white flex items-center justify-center font-bold text-xs active:scale-95 transition-all">
+                    +15s
+                </button>
+
+                <button onclick="resetarTimer()" title="Reiniciar" class="w-12 h-12 rounded-2xl bg-dark-900 hover:bg-dark-850 border border-slate-800 text-slate-400 hover:text-red-400 flex items-center justify-center font-bold text-sm active:scale-95 transition-all">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- =====================================================
+         MODAL: SELEÇÃO DE AVATAR
+    ===================================================== -->
+    <div id="modalAvatar" class="fixed inset-0 z-50 bg-dark-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden animate-scale-in">
+        <div class="glass-card rounded-3xl border border-slate-800 p-6 max-w-sm w-full shadow-2xl text-center">
+            <h4 class="text-lg font-black text-white mb-2">Escolha seu Avatar</h4>
+            <p class="text-xs text-slate-400 mb-5">Selecione o ícone que melhor representa seu perfil.</p>
+
+            <div class="grid grid-cols-4 gap-3 mb-6">
+                <button onclick="selecionarAvatar('🏋️')" class="avatar-opt w-14 h-14 rounded-2xl bg-dark-900 hover:bg-gym-500/20 border border-slate-800 text-3xl flex items-center justify-center transition-all hover:scale-110">🏋️</button>
+                <button onclick="selecionarAvatar('💪')" class="avatar-opt w-14 h-14 rounded-2xl bg-dark-900 hover:bg-gym-500/20 border border-slate-800 text-3xl flex items-center justify-center transition-all hover:scale-110">💪</button>
+                <button onclick="selecionarAvatar('⚡')" class="avatar-opt w-14 h-14 rounded-2xl bg-dark-900 hover:bg-gym-500/20 border border-slate-800 text-3xl flex items-center justify-center transition-all hover:scale-110">⚡</button>
+                <button onclick="selecionarAvatar('🔥')" class="avatar-opt w-14 h-14 rounded-2xl bg-dark-900 hover:bg-gym-500/20 border border-slate-800 text-3xl flex items-center justify-center transition-all hover:scale-110">🔥</button>
+                <button onclick="selecionarAvatar('🦍')" class="avatar-opt w-14 h-14 rounded-2xl bg-dark-900 hover:bg-gym-500/20 border border-slate-800 text-3xl flex items-center justify-center transition-all hover:scale-110">🦍</button>
+                <button onclick="selecionarAvatar('🦁')" class="avatar-opt w-14 h-14 rounded-2xl bg-dark-900 hover:bg-gym-500/20 border border-slate-800 text-3xl flex items-center justify-center transition-all hover:scale-110">🦁</button>
+                <button onclick="selecionarAvatar('🥇')" class="avatar-opt w-14 h-14 rounded-2xl bg-dark-900 hover:bg-gym-500/20 border border-slate-800 text-3xl flex items-center justify-center transition-all hover:scale-110">🥇</button>
+                <button onclick="selecionarAvatar('🦾')" class="avatar-opt w-14 h-14 rounded-2xl bg-dark-900 hover:bg-gym-500/20 border border-slate-800 text-3xl flex items-center justify-center transition-all hover:scale-110">🦾</button>
+            </div>
+
+            <button onclick="fecharModalAvatar()" class="w-full py-3 rounded-xl bg-dark-850 hover:bg-dark-800 text-slate-300 font-bold text-xs transition-all">
+                Cancelar
+            </button>
+        </div>
+    </div>
+
+
+    <!-- =====================================================
+         MODAL: TREINO CONCLUÍDO (CELEBRAÇÃO COM CONFETES)
+    ===================================================== -->
+    <div id="modalTreinoConcluido" class="fixed inset-0 z-50 bg-dark-950/85 backdrop-blur-lg flex items-center justify-center p-4 hidden animate-scale-in">
+        <div class="glass-card rounded-3xl border border-gym-500/50 p-6 sm:p-8 max-w-md w-full shadow-glow-lg text-center relative overflow-hidden">
+            
+            <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-gym-500 to-gym-accent flex items-center justify-center text-4xl mx-auto mb-4 shadow-glow animate-bounce">
+                🏆
+            </div>
+
+            <span class="text-xs font-bold uppercase tracking-widest text-gym-400">MISSÃO CUMPRIDA!</span>
+            <h3 class="text-2xl sm:text-3xl font-black text-white mt-1">Treino Finalizado com Sucesso! 🔥</h3>
+            
+            <p class="text-slate-300 text-xs sm:text-sm mt-2 leading-relaxed">
+                Parabéns pelo esforço e dedicação. Cada gota de suor aproxima você do seu objetivo!
+            </p>
+
+            <!-- STATS RESUMO DO TREINO -->
+            <div class="grid grid-cols-3 gap-2 my-6 p-4 rounded-2xl bg-dark-900/90 border border-slate-800">
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500">Duração</span>
+                    <p id="resumoModalTempo" class="text-base sm:text-lg font-black text-white mt-1">00:00</p>
+                </div>
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500">Exercícios</span>
+                    <p id="resumoModalExercicios" class="text-base sm:text-lg font-black text-gym-400 mt-1">5/5</p>
+                </div>
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500">Volume</span>
+                    <p id="resumoModalVolume" class="text-base sm:text-lg font-black text-cyan-400 mt-1">0 kg</p>
+                </div>
+            </div>
+
+            <div class="space-y-2.5">
+                <button onclick="fecharModalTreinoConcluido()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-gym-500 to-gym-600 hover:from-gym-400 hover:to-gym-500 text-dark-950 font-black text-sm shadow-glow transition-all active:scale-95">
+                    Voltar ao Início 🚀
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- =====================================================
+         TOAST CONTAINER (NOTIFICAÇÕES FLUTUANTES)
+    ===================================================== -->
+    <div id="toastContainer" class="fixed top-20 right-4 z-50 flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
+
+
+    <!-- =====================================================
+         MENU INFERIOR (BOTTOM FLOATING DOCK)
+    ===================================================== -->
+    <nav class="fixed bottom-3 left-0 right-0 z-40 px-4 pointer-events-none">
+        <div class="max-w-md mx-auto glass-nav rounded-2xl sm:rounded-3xl p-1.5 shadow-2xl pointer-events-auto border border-slate-800/80">
+            <div class="grid grid-cols-4 gap-1">
+
+                <!-- TAB 1: INÍCIO -->
+                <button id="nav-inicio" onclick="mostrarPagina('inicio')" class="nav-button flex flex-col items-center justify-center gap-1 py-2 sm:py-2.5 rounded-xl text-gym-400 font-bold transition-all relative group">
+                    <i class="fa-solid fa-house text-lg transition-transform group-hover:scale-110"></i>
+                    <span class="text-[10px] tracking-tight">Início</span>
+                </button>
+
+                <!-- TAB 2: TREINOS -->
+                <button id="nav-treinos" onclick="mostrarPagina('treinos')" class="nav-button flex flex-col items-center justify-center gap-1 py-2 sm:py-2.5 rounded-xl text-slate-500 hover:text-slate-300 font-semibold transition-all relative group">
+                    <i class="fa-solid fa-dumbbell text-lg transition-transform group-hover:scale-110"></i>
+                    <span class="text-[10px] tracking-tight">Treinos</span>
+                </button>
+
+                <!-- TAB 3: HISTÓRICO -->
+                <button id="nav-historico" onclick="mostrarPagina('historico')" class="nav-button flex flex-col items-center justify-center gap-1 py-2 sm:py-2.5 rounded-xl text-slate-500 hover:text-slate-300 font-semibold transition-all relative group">
+                    <i class="fa-solid fa-chart-simple text-lg transition-transform group-hover:scale-110"></i>
+                    <span class="text-[10px] tracking-tight">Histórico</span>
+                </button>
+
+                <!-- TAB 4: PERFIL -->
+                <button id="nav-perfil" onclick="mostrarPagina('perfil')" class="nav-button flex flex-col items-center justify-center gap-1 py-2 sm:py-2.5 rounded-xl text-slate-500 hover:text-slate-300 font-semibold transition-all relative group">
+                    <i class="fa-solid fa-user text-lg transition-transform group-hover:scale-110"></i>
+                    <span class="text-[10px] tracking-tight">Perfil</span>
+                </button>
+
+            </div>
+        </div>
+    </nav>
+
+
+    <!-- =====================================================
+         SCRIPTS
+    ===================================================== -->
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
