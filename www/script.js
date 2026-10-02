@@ -44,16 +44,53 @@ let filtroHistoricoAtual = 'TODOS';
 /* =====================================================
    INICIALIZAÇÃO DA APLICAÇÃO
 ===================================================== */
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
     inicializarDataHero();
-    carregarPerfilUI();
     mostrarFraseMotivacional();
+    inicializarPreferenciasUI();
     mostrarTreinos();
+
+    // ── SINCRONIZAÇÃO INICIAL COM SUPABASE ─────────────────
+    // Tenta carregar dados da nuvem; se falhar, usa localStorage
+    await sincronizarDadosIniciais();
+    // ──────────────────────────────────────────────────────────
+
+    carregarPerfilUI();
     atualizarResumoDashboard();
     mostrarHistorico();
     atualizarEstatisticasHistorico();
-    inicializarPreferenciasUI();
 });
+
+/**
+ * Sincronização inicial: tenta buscar dados do Supabase.
+ * Se bem-sucedido, atualiza o array local e o localStorage.
+ * Se falhar, mantém os dados do localStorage (modo offline).
+ */
+async function sincronizarDadosIniciais() {
+    // Aguardar gymflowDB estar disponível (pode levar um tick)
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Tentar carregar perfil da nuvem
+    if (typeof gymflowDB !== 'undefined' && gymflowDB.isConnected) {
+        const perfilNuvem = await gymflowDB.carregarPerfil();
+        if (perfilNuvem) {
+            perfil = { ...perfil, ...perfilNuvem };
+            localStorage.setItem("gymflow_perfil", JSON.stringify(perfil));
+            console.log('[GymFlow] Perfil sincronizado da nuvem.');
+        }
+
+        // Carregar histórico da nuvem (sobrescreve o localStorage se bem-sucedido)
+        const historicoNuvem = await gymflowDB.carregarHistorico();
+        if (historicoNuvem !== null) {
+            historico = historicoNuvem;
+            localStorage.setItem("gymflow_historico", JSON.stringify(historico));
+            console.log(`[GymFlow] ${historico.length} registros sincronizados da nuvem.`);
+            mostrarToast(`${historico.length} registros carregados da nuvem ☁️`, 'info');
+        }
+    } else {
+        console.log('[GymFlow] Modo offline: usando dados do localStorage.');
+    }
+}
 
 
 /* =====================================================
@@ -489,7 +526,7 @@ function toggleDica(id) {
 /* =====================================================
    CONCLUIR EXERCÍCIO / SÉRIE
 ===================================================== */
-function concluirExercicio(id) {
+async function concluirExercicio(id) {
     const exercicio = treinos[treinoAtual].exercicios.find(item => item.id === id);
     if (!exercicio) return;
 
@@ -524,8 +561,16 @@ function concluirExercicio(id) {
         volume: volumeSerie
     };
 
-    historico.unshift(registro);
+    // ── SUPABASE INSERT ───────────────────────────────────
+    // Inserir no banco remoto (retorna com _db_id para referência futura)
+    if (typeof gymflowDB !== 'undefined') {
+        const registroSalvo = await gymflowDB.inserirRegistro(registro);
+        historico.unshift(registroSalvo);
+    } else {
+        historico.unshift(registro);
+    }
     localStorage.setItem("gymflow_historico", JSON.stringify(historico));
+    // ─────────────────────────────────────────────────────
 
     // Atualizar visual do card para concluído
     const card = document.getElementById("exercicio-" + id);
@@ -904,27 +949,43 @@ function filtrarHistoricoPorTreino(treino) {
     mostrarHistorico();
 }
 
-function excluirItemHistorico(id) {
-    historico = historico.filter(item => item.id !== id);
+async function excluirItemHistorico(id) {
+    // Encontrar o registro para obter o _db_id (ID do banco)
+    const registro = historico.find(item => item.id === id || item._db_id === id);
+
+    // ── SUPABASE DELETE ───────────────────────────────────
+    if (typeof gymflowDB !== 'undefined' && registro) {
+        const dbId = registro._db_id || registro.id;
+        await gymflowDB.excluirRegistro(dbId);
+    }
+    // ─────────────────────────────────────────────────────
+
+    historico = historico.filter(item => item.id !== id && item._db_id !== id);
     localStorage.setItem("gymflow_historico", JSON.stringify(historico));
 
-    mostrarToast("Registro removido do histórico.", "info");
+    mostrarToast("Registro removido do histórico e da nuvem.", "info");
     mostrarHistorico();
     atualizarResumoDashboard();
     atualizarEstatisticasHistorico();
     renderizarGraficoEvolucao();
 }
 
-function confirmarLimpezaHistorico() {
+async function confirmarLimpezaHistorico() {
     if (historico.length === 0) {
         mostrarToast("Seu histórico já está vazio.", "info");
         return;
     }
 
     if (confirm("Tem certeza que deseja apagar todo o histórico de treinos? Essa ação não pode ser desfeita.")) {
+        // ── SUPABASE DELETE ALL ───────────────────────────────
+        if (typeof gymflowDB !== 'undefined') {
+            await gymflowDB.limparHistorico();
+        }
+        // ─────────────────────────────────────────────────────
+
         historico = [];
         localStorage.removeItem("gymflow_historico");
-        mostrarToast("Todo o histórico foi limpo com sucesso.");
+        mostrarToast("Todo o histórico foi limpo com sucesso (local e nuvem).");
         mostrarHistorico();
         atualizarResumoDashboard();
         atualizarEstatisticasHistorico();
@@ -1130,7 +1191,7 @@ function carregarPerfilUI() {
     if (metaDisplay) metaDisplay.textContent = `Foco: ${perfil.meta || 'Hipertrofia & Força Muscular'}`;
 }
 
-function salvarPerfil() {
+async function salvarPerfil() {
     const inputNome = document.getElementById("inputNome");
     const inputPeso = document.getElementById("inputPesoCorporal");
     const inputAltura = document.getElementById("inputAltura");
@@ -1148,12 +1209,19 @@ function salvarPerfil() {
     perfil.altura = inputAltura.value ? Number(inputAltura.value) : "";
     perfil.meta = selectMeta ? selectMeta.value : "Hipertrofia";
 
+    // Salvar localmente
     localStorage.setItem("gymflow_perfil", JSON.stringify(perfil));
     localStorage.setItem("gymflow_nome", perfil.nome);
 
+    // ── SUPABASE UPSERT PERFIL ────────────────────────────
+    if (typeof gymflowDB !== 'undefined') {
+        await gymflowDB.salvarPerfil(perfil);
+    }
+    // ─────────────────────────────────────────────────────
+
     carregarPerfilUI();
     tocarSom('sucesso');
-    mostrarToast("Perfil atualizado com sucesso! 👊");
+    mostrarToast("Perfil atualizado e sincronizado! 👊");
 }
 
 function abrirSeletorAvatar() {
