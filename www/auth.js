@@ -19,6 +19,14 @@ let emRecuperacao = false;      // true enquanto o usuário define a nova senha
 
 const MIN_SENHA = 6;
 
+// Retorno do login quando o app está instalado (APK): abre o app por deep link.
+// Precisa estar em Supabase > Authentication > URL Configuration > Redirect URLs.
+const URL_RETORNO_APP = 'com.gym.flow://login-callback';
+
+function urlRetorno() {
+    return APP_NATIVO ? URL_RETORNO_APP : window.location.origin;
+}
+
 const TEXTOS_MODO = {
     entrar:    { titulo: 'Entrar na sua conta', sub: 'Use seu e-mail e senha ou continue com o Google.', botao: 'Entrar',            ocupado: 'Entrando...' },
     criar:     { titulo: 'Criar sua conta',      sub: 'Comece a registrar seus treinos.',                 botao: 'Criar conta',        ocupado: 'Criando conta...' },
@@ -289,6 +297,47 @@ function aplicarSessao(session) {
     }
 
     aplicarUsuarioNaUI();
+    sincronizarDadosDaConta(session).catch(err => console.error("[GymFlow Auth] ❌ sincronizar conta:", err && err.message));
+}
+
+/**
+ * Liga os treinos à conta logada: o app passa a ler/gravar no Supabase com o
+ * id do usuário e o token do login, então os dados seguem a conta em qualquer aparelho.
+ */
+async function sincronizarDadosDaConta(session) {
+    if (typeof gymflowDB === 'undefined') return;
+
+    const user = session && session.user ? session.user : null;
+    const ativo = !!user && !emRecuperacao;
+
+    const mudou = await gymflowDB.definirSessao(ativo ? session : null);
+    if (!mudou || !ativo) return;
+
+    const uidSalvo = localStorage.getItem('gymflow_uid');
+
+    // Outra conta neste aparelho: não mostrar os dados da anterior
+    if (uidSalvo && uidSalvo !== user.id) {
+        ['gymflow_historico', 'gymflow_perfil', 'gymflow_nome'].forEach(k => localStorage.removeItem(k));
+        historico = [];
+        perfil = { nome: 'Atleta', avatar: '🏋️', pesoCorporal: '', altura: '', meta: 'Hipertrofia', nivel: 'Intermediário' };
+    }
+
+    // Primeiro login neste aparelho: sobe os treinos que já estavam salvos só no celular
+    if (!uidSalvo && gymflowDB.isConnected && historico.length > 0) {
+        const nuvem = await gymflowDB.carregarHistorico();
+        if (nuvem && nuvem.length === 0) {
+            for (const reg of historico) await gymflowDB.inserirRegistro(reg);
+            await gymflowDB.salvarPerfil(perfil);
+        }
+    }
+    localStorage.setItem('gymflow_uid', user.id);
+
+    await sincronizarDadosIniciais();
+    sincronizarNomeDoPerfil();
+    carregarPerfilUI();
+    atualizarResumoDashboard();
+    mostrarHistorico();
+    atualizarEstatisticasHistorico();
 }
 
 /* ─── Ações ─────────────────────────────────────────── */
@@ -350,7 +399,7 @@ async function enviarFormAuth(ev) {
             const { data, error } = await supabaseClient.auth.signUp({
                 email,
                 password: senha,
-                options: { emailRedirectTo: window.location.origin }
+                options: { emailRedirectTo: urlRetorno() }
             });
             if (error) throw error;
 
@@ -398,7 +447,7 @@ async function esqueciSenha() {
     setOcupado(true);
 
     try {
-        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: urlRetorno() });
         if (error) throw error;
         mostrarAvisoLogin('Se houver uma conta para ' + email + ', enviamos um link para redefinir a senha.');
     } catch (err) {
@@ -419,17 +468,81 @@ async function entrarComGoogle() {
     mostrarErroLogin('');
     setOcupado(true, { google: 'Redirecionando para o Google...' });
 
-    const { error } = await supabaseClient.auth.signInWithOAuth({
+    const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin }
+        options: { redirectTo: urlRetorno(), skipBrowserRedirect: APP_NATIVO }
     });
 
-    // Em caso de sucesso o navegador já está indo para o Google.
     if (error) {
         console.error('[GymFlow Auth] ❌ signInWithOAuth:', error.message);
         setOcupado(false);
         mostrarErroLogin('Erro ao iniciar o login com Google: ' + error.message);
+        return;
     }
+
+    // Na web o navegador já está indo para o Google.
+    // No APK o Google não aceita WebView: abre no navegador do celular e volta pelo deep link.
+    if (APP_NATIVO && data && data.url) {
+        const Browser = window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+        if (!Browser) {
+            setOcupado(false);
+            mostrarErroLogin('Plugin de navegador ausente. Gere o APK de novo (npm install + npx cap sync android).');
+            return;
+        }
+        try {
+            await Browser.open({ url: data.url });
+        } catch (err) {
+            setOcupado(false);
+            mostrarErroLogin('Não foi possível abrir o navegador: ' + err.message);
+        }
+    }
+}
+
+/** APK: recebe o retorno do Google (com.gym.flow://login-callback?code=...) e cria a sessão. */
+function configurarRetornoDoApp() {
+    if (!APP_NATIVO) return;
+    const plugins = window.Capacitor.Plugins || {};
+    const App = plugins.App;
+    const Browser = plugins.Browser;
+    if (!App) { console.warn('[GymFlow Auth] Plugin @capacitor/app ausente.'); return; }
+
+    if (Browser) Browser.addListener('browserFinished', () => setOcupado(false));
+
+    App.addListener('appUrlOpen', async ({ url }) => {
+        if (!url || url.indexOf(URL_RETORNO_APP) !== 0) return;
+        if (Browser) { try { await Browser.close(); } catch (e) { /* já fechou */ } }
+
+        const u = new URL(url);
+        const query = new URLSearchParams(u.search);
+        const hash = new URLSearchParams(u.hash.replace(/^#/, ''));
+
+        const falha = query.get('error_description') || hash.get('error_description');
+        if (falha) {
+            setOcupado(false);
+            mostrarErroLogin('Falha no acesso: ' + falha.replace(/\+/g, ' '));
+            return;
+        }
+
+        try {
+            const code = query.get('code');
+            if (code) {
+                const { error } = await supabaseClient.auth.exchangeCodeForSession(code);
+                if (error) throw error;
+            } else if (hash.get('access_token') && hash.get('refresh_token')) {
+                if (hash.get('type') === 'recovery') { emRecuperacao = true; alternarModoAuth('redefinir'); }
+                const { error } = await supabaseClient.auth.setSession({
+                    access_token: hash.get('access_token'),
+                    refresh_token: hash.get('refresh_token')
+                });
+                if (error) throw error;
+            }
+        } catch (err) {
+            console.error('[GymFlow Auth] ❌ retorno do app:', err && err.message);
+            mostrarErroLogin(traduzirErroAuth(err));
+        } finally {
+            setOcupado(false);
+        }
+    });
 }
 
 /** Encerra a sessão do usuário. */
@@ -443,16 +556,16 @@ async function sair() {
         return;
     }
 
-    emRecuperacao = false;
-    alternarModoAuth('entrar');
-    aplicarSessao(null);
-    if (typeof mostrarPagina === 'function') mostrarPagina('inicio');
+    // Não deixa os treinos da conta no aparelho depois de sair
+    ['gymflow_historico', 'gymflow_perfil', 'gymflow_nome', 'gymflow_uid'].forEach(k => localStorage.removeItem(k));
+    window.location.reload();
 }
 
 /* ─── Inicialização ─────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async function () {
     const erroDaUrl = lerErroDaUrl();
+    configurarRetornoDoApp();
 
     if (!supabaseClient) {
         alternarTelaLogin(false);

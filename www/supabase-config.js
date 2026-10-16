@@ -91,7 +91,38 @@ class GymFlowSupabase {
         };
         this.isConnected = false;
         this.realtimeChannel = null;
+        this.token = null;
         this._verificarConexao();
+    }
+
+    /* ─── SESSÃO DO USUÁRIO (LOGIN) ──────────────────────── */
+    /**
+     * Passa a usar o id e o token da conta logada (ou volta ao modo anônimo).
+     * @returns {Promise<boolean>} true se trocou de usuário e reconectou.
+     */
+    async definirSessao(session) {
+        const user = session && session.user ? session.user : null;
+        const novoId = user ? user.id : DEVICE_ID;
+        const novoToken = session && session.access_token ? session.access_token : this.key;
+        const mudouUsuario = novoId !== this.deviceId;
+
+        this.deviceId = novoId;
+        this.token = novoToken;
+        this.headers = { ...this.headers, 'Authorization': `Bearer ${novoToken}` };
+
+        if (!mudouUsuario) return false;
+
+        this._fecharRealtime();
+        this.isConnected = false;
+        await this._verificarConexao();
+        return true;
+    }
+
+    _fecharRealtime() {
+        if (!this.realtimeChannel) return;
+        this.realtimeChannel.onclose = null;
+        try { this.realtimeChannel.close(); } catch (e) { /* já fechado */ }
+        this.realtimeChannel = null;
     }
 
     /* ─── VERIFICAÇÃO DE CONEXÃO ─────────────────────────── */
@@ -403,7 +434,7 @@ class GymFlowSupabase {
                 this.realtimeChannel.send(JSON.stringify({
                     topic: `realtime:public:historico_treinos:device_id=eq.${this.deviceId}`,
                     event: 'phx_join',
-                    payload: {},
+                    payload: { access_token: this.token || this.key, user_token: this.token || this.key },
                     ref: '1'
                 }));
             };

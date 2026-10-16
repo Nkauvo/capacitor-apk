@@ -15,6 +15,9 @@
 // de senha (type=recovery) e erros devolvidos pelo OAuth/e-mail.
 const URL_INICIAL = { search: window.location.search, hash: window.location.hash };
 
+// App instalado (APK)? No navegador comum continua o fluxo padrão.
+const APP_NATIVO = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+
 let supabaseClient = null;
 
 try {
@@ -26,7 +29,8 @@ try {
         auth: {
             persistSession: true,      // mantém a sessão no localStorage
             autoRefreshToken: true,    // renova o JWT automaticamente
-            detectSessionInUrl: true   // captura a sessão ao voltar do Google (OAuth)
+            detectSessionInUrl: !APP_NATIVO,   // na web captura a sessão ao voltar do Google
+            flowType: APP_NATIVO ? 'pkce' : 'implicit'  // no APK o retorno é pelo deep link (PKCE)
         }
     });
 
