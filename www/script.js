@@ -1189,6 +1189,9 @@ function carregarPerfilUI() {
     if (avatarGrande) avatarGrande.textContent = perfil.avatar || "🏋️";
     if (avatarHeader) avatarHeader.textContent = perfil.avatar || "🏋️";
     if (metaDisplay) metaDisplay.textContent = `Foco: ${perfil.meta || 'Hipertrofia & Força Muscular'}`;
+
+    // Reaplica a foto/dados da conta Google (auth.js) sobre o avatar padrão do header
+    if (typeof aplicarUsuarioNaUI === 'function') aplicarUsuarioNaUI();
 }
 
 async function salvarPerfil() {
